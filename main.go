@@ -10,6 +10,7 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/api/products", handler.ProductHandler)
 	mux.HandleFunc("/api/products/", handler.ProductHandler)
 

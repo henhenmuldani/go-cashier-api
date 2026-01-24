@@ -12,7 +12,8 @@ func main() {
 
 	mux.HandleFunc("/health", handler.HealthHandler)
 	mux.HandleFunc("/api/products", handler.ProductHandler)
-	mux.HandleFunc("/api/products/", handler.ProductHandler)
+	mux.HandleFunc("/api/categories", handler.CategoryHandler)
+	mux.HandleFunc("/api/categories/", handler.CategoryHandler)
 
 	log.Println("Server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))

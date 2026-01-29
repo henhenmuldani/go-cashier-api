@@ -45,11 +45,11 @@ func (repo *ProductRepository) GetAll() ([]model.Product, error) {
 // GetProductByID returns a product by its ID
 func (repo *ProductRepository) GetByID(id int) (*model.Product, error) {
 	// query product by ID from database
-	query := "SELECT id, name, price, stock FROM products WHERE id = $1"
+	query := "SELECT p.id, p.name, p.price, p.stock, c.name AS category_name  FROM products p JOIN categories c ON p.category_id = c.id WHERE p.id = $1"
 
 	// scan result into product struct
 	var p model.Product
-	err := repo.db.QueryRow(query, id).Scan(&p.ID, &p.Name, &p.Price, &p.Stock)
+	err := repo.db.QueryRow(query, id).Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.CategoryName)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("product not found")
 	}
@@ -64,15 +64,15 @@ func (repo *ProductRepository) GetByID(id int) (*model.Product, error) {
 // CreateProduct adds a new product to the store
 func (repo *ProductRepository) Create(p *model.Product) error {
 	// insert new product into database
-	query := "INSERT INTO products (name, price, stock) VALUES ($1, $2, $3) RETURNING id"
-	err := repo.db.QueryRow(query, p.Name, p.Price, p.Stock).Scan(&p.ID)
+	query := "INSERT INTO products (name, price, stock, category_id) VALUES ($1, $2, $3, $4) RETURNING id"
+	err := repo.db.QueryRow(query, p.Name, p.Price, p.Stock, p.CategoryID).Scan(&p.ID)
 	return err
 }
 
 // UpdateProduct updates an existing product by its ID
 func (repo *ProductRepository) Update(product *model.Product) error {
-	query := "UPDATE products SET name = $1, price = $2, stock = $3 WHERE id = $4"
-	result, err := repo.db.Exec(query, product.Name, product.Price, product.Stock, product.ID)
+	query := "UPDATE products SET name = $1, price = $2, stock = $3, category_id = $4 WHERE id = $5"
+	result, err := repo.db.Exec(query, product.Name, product.Price, product.Stock, product.CategoryID, product.ID)
 	if err != nil {
 		return err
 	}

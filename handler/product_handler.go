@@ -6,11 +6,22 @@ import (
 	"strconv"       //Convert string to number (for ID from URL)
 	"strings"       //String manipulation (trim, split, etc)
 
-	"go-cashier-api/model" // Import model package
-	"go-cashier-api/store" // Import store package
+	"go-cashier-api/model"   // Import model package
+	"go-cashier-api/service" // Import service package
 )
 
-func ProductHandler(w http.ResponseWriter, r *http.Request) {
+// ProductHandler handles HTTP requests for products
+type ProductHandler struct {
+	service *service.ProductService
+}
+
+// NewProductHandler creates a new ProductHandler with the given ProductService
+func NewProductHandler(s *service.ProductService) *ProductHandler {
+	return &ProductHandler{service: s}
+}
+
+// HandleProducts handles HTTP requests for products based on the method and URL path
+func (h *ProductHandler) HandleProducts(w http.ResponseWriter, r *http.Request) {
 	// Set response header to JSON
 	w.Header().Set("Content-Type", "application/json")
 
@@ -24,7 +35,12 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 		// GET /api/products
 		// If no ID is provided, return all products
 		if path == "" {
-			json.NewEncoder(w).Encode(store.GetAllProducts())
+			products, err := h.service.GetAll()
+			if err != nil {
+				http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(products)
 			return
 		}
 
@@ -38,8 +54,8 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Fetch product by ID
-		product, found := store.GetProductByID(id)
-		if !found {
+		product, err := h.service.GetByID(id)
+		if err != nil {
 			http.Error(w, "Product not found", http.StatusNotFound)
 			return
 		}
@@ -56,19 +72,30 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Decode request body into Product struct
 		var newProduct model.Product
-		if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields() // Disallow unknown fields
+		if err := decoder.Decode(&newProduct); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		// Create new product
-		created := store.CreateProduct(newProduct)
+		err := h.service.Create(&newProduct)
+		if err != nil {
+			http.Error(w, "Failed to create product", http.StatusInternalServerError)
+			return
+		}
 		// Return created product with 201 status
 		w.WriteHeader(http.StatusCreated)
 		// Return the created product as JSON
-		json.NewEncoder(w).Encode(created)
+		json.NewEncoder(w).Encode(newProduct)
 	case http.MethodPut:
 		// PUT /api/products/{id}
+		if path == "" {
+			http.Error(w, "Product ID required", http.StatusBadRequest)
+			return
+		}
+
 		// Convert ID from string to integer
 		id, err := strconv.Atoi(path)
 		if err != nil {
@@ -78,20 +105,22 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Decode request body into Product struct
 		var product model.Product
-		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-			http.Error(w, "Invalid body", http.StatusBadRequest)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields() // Disallow unknown fields
+		if err := decoder.Decode(&product); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 			return
 		}
 
 		// Update product
-		updated, ok := store.UpdateProduct(id, product)
-		if !ok {
-			http.Error(w, "Product not found", http.StatusNotFound)
+		product.ID = id // Ensure the ID is set from the URL
+		err = h.service.Update(&product)
+		if err != nil {
+			http.Error(w, "Failed to update product", http.StatusInternalServerError)
 			return
 		}
-
 		// Return the updated product as JSON
-		json.NewEncoder(w).Encode(updated)
+		json.NewEncoder(w).Encode(product)
 	case http.MethodDelete:
 		// DELETE /api/products/{id}
 		// Convert ID from string to integer
@@ -102,8 +131,9 @@ func ProductHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Delete product
-		if !store.DeleteProduct(id) {
-			http.Error(w, "Product not found", http.StatusNotFound)
+		err = h.service.Delete(id)
+		if err != nil {
+			http.Error(w, "Failed to delete product", http.StatusInternalServerError)
 			return
 		}
 

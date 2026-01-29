@@ -6,11 +6,19 @@ import (
 	"strconv"       //Convert string to number (for ID from URL)
 	"strings"       //String manipulation (trim, split, etc)
 
-	"go-cashier-api/model" // Import model package
-	"go-cashier-api/store" // Import store package
+	"go-cashier-api/model"   // Import model package
+	"go-cashier-api/service" // Import service package
 )
 
-func CategoryHandler(w http.ResponseWriter, r *http.Request) {
+type CategoryHandler struct {
+	service *service.CategoryService
+}
+
+func NewCategoryHandler(s *service.CategoryService) *CategoryHandler {
+	return &CategoryHandler{service: s}
+}
+
+func (h *CategoryHandler) HandleCategories(w http.ResponseWriter, r *http.Request) {
 	// Set response header to JSON
 	w.Header().Set("Content-Type", "application/json")
 
@@ -24,7 +32,12 @@ func CategoryHandler(w http.ResponseWriter, r *http.Request) {
 		// GET /api/categories
 		// If no ID is provided, return all categories
 		if path == "" {
-			json.NewEncoder(w).Encode(store.GetAllCategories())
+			categories, err := h.service.GetAll()
+			if err != nil {
+				http.Error(w, "Failed to fetch categories", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(categories)
 			return
 		}
 
@@ -38,8 +51,8 @@ func CategoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Fetch category by ID
-		category, found := store.GetCategoryByID(id)
-		if !found {
+		category, err := h.service.GetByID(id)
+		if err != nil {
 			http.Error(w, "Category not found", http.StatusNotFound)
 			return
 		}
@@ -56,19 +69,30 @@ func CategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Decode request body into Category struct
 		var newCategory model.Category
-		if err := json.NewDecoder(r.Body).Decode(&newCategory); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields() // Disallow unknown fields
+		if err := decoder.Decode(&newCategory); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		// Create new category
-		created := store.CreateCategory(newCategory)
+		err := h.service.Create(&newCategory)
+		if err != nil {
+			http.Error(w, "Failed to create category", http.StatusInternalServerError)
+			return
+		}
 		// Return created category with 201 status
 		w.WriteHeader(http.StatusCreated)
 		// Return the created category as JSON
-		json.NewEncoder(w).Encode(created)
+		json.NewEncoder(w).Encode(newCategory)
 	case http.MethodPut:
 		// PUT /api/categories/{id}
+		if path == "" {
+			http.Error(w, "Category ID required", http.StatusBadRequest)
+			return
+		}
+
 		// Convert ID from string to integer
 		id, err := strconv.Atoi(path)
 		if err != nil {
@@ -78,20 +102,23 @@ func CategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Decode request body into Category struct
 		var category model.Category
-		if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-			http.Error(w, "Invalid body", http.StatusBadRequest)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields() // Disallow unknown fields
+		if err := decoder.Decode(&category); err != nil {
+			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 			return
 		}
 
 		// Update category
-		updated, ok := store.UpdateCategory(id, category)
-		if !ok {
-			http.Error(w, "Category not found", http.StatusNotFound)
+		category.ID = id // Ensure the ID is set from the URL
+		err = h.service.Update(&category)
+		if err != nil {
+			http.Error(w, "Failed to update category", http.StatusInternalServerError)
 			return
 		}
 
 		// Return the updated category as JSON
-		json.NewEncoder(w).Encode(updated)
+		json.NewEncoder(w).Encode(category)
 	case http.MethodDelete:
 		// DELETE /api/categories/{id}
 		// Convert ID from string to integer
@@ -102,8 +129,9 @@ func CategoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Delete category
-		if !store.DeleteCategory(id) {
-			http.Error(w, "Category not found", http.StatusNotFound)
+		err = h.service.Delete(id)
+		if err != nil {
+			http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 			return
 		}
 

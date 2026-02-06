@@ -1,51 +1,116 @@
 package service
 
 import (
+	"errors"
 	"go-cashier-api/model"
+	"go-cashier-api/repository"
+	"log"
+	"strings"
 )
 
-// ProductRepository defines the interface for product data operations
-// This allows for decoupling the service layer from the data layer
-type ProductRepository interface {
+// ProductService interface defines the methods for product service
+type ProductService interface {
 	GetAll() ([]model.Product, error)
-	Create(data *model.Product) error
 	GetByID(id int) (*model.Product, error)
-	Update(product *model.Product) error
+	Create(product *model.Product) error
+	Update(id int, product *model.Product) error
 	Delete(id int) error
 }
 
-// ProductService struct holds the repository dependency
-type ProductService struct {
-	repo ProductRepository
+type productService struct {
+	productRepo repository.ProductRepository
+	// categoryRepo repository.CategoryRepository
 }
 
 // NewProductService creates a new instance of ProductService
 // this called at main.go to initialize the service with the repository
-func NewProductService(repo ProductRepository) *ProductService {
-	return &ProductService{repo: repo}
+func NewProductService(productRepo repository.ProductRepository) ProductService {
+	return &productService{productRepo: productRepo}
 }
 
 // GetAll retrieves all products using the repository
-func (s *ProductService) GetAll() ([]model.Product, error) {
-	return s.repo.GetAll()
+func (s *productService) GetAll() ([]model.Product, error) {
+	products, err := s.productRepo.GetAll()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
 }
 
 // Create adds a new product using the repository
-func (s *ProductService) Create(data *model.Product) error {
-	return s.repo.Create(data)
+func (s *productService) Create(product *model.Product) error {
+	// Validate input
+	if strings.TrimSpace(product.Name) == "" {
+		return errors.New("product name is required")
+	}
+
+	if product.Price <= 0 {
+		return errors.New("product price must be positive")
+	}
+
+	if product.Stock < 0 {
+		return errors.New("product stock cannot be negative")
+	}
+
+	// Check if category exists
+	// _, err := s.categoryRepo.GetByID(product.CategoryID)
+	// if err != nil {
+	// 	return errors.New("category does not exist")
+	// }
+
+	return s.productRepo.Create(product)
+
 }
 
 // GetByID retrieves a product by its ID using the repository
-func (s *ProductService) GetByID(id int) (*model.Product, error) {
-	return s.repo.GetByID(id)
+func (s *productService) GetByID(id int) (*model.Product, error) {
+	return s.productRepo.GetByID(id)
 }
 
 // Update modifies an existing product using the repository
-func (s *ProductService) Update(product *model.Product) error {
-	return s.repo.Update(product)
+func (s *productService) Update(id int, product *model.Product) error {
+	existing, err := s.productRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	log.Printf("Existing product: %+v", existing)
+	log.Printf("Update data: %+v", product)
+	// Update fields
+	if product.Name != "" { // Also consider updating Name if needed
+		existing.Name = product.Name
+	}
+	if product.Price > 0 {
+		existing.Price = product.Price
+	}
+
+	if product.Stock >= 0 {
+		existing.Stock = product.Stock
+	}
+
+	if product.CategoryID > 0 { // Add this check
+		existing.CategoryID = product.CategoryID
+	}
+	// if product.CategoryID > 0 {
+	// 	// Check if new category exists
+	// 	_, err := s.categoryRepo.GetByID(product.CategoryID)
+	// 	if err != nil {
+	// 		return errors.New("category does not exist")
+	// 	}
+	// 	existing.CategoryID = product.CategoryID
+	// }
+
+	return s.productRepo.Update(existing)
 }
 
 // Delete removes a product by its ID using the repository
-func (s *ProductService) Delete(id int) error {
-	return s.repo.Delete(id)
+func (s *productService) Delete(id int) error {
+	// Check if product exists
+	_, err := s.productRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	return s.productRepo.Delete(id)
 }

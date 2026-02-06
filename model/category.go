@@ -5,3 +5,8 @@ type Category struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
+
+type CreateCategoryRequestSwagger struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}

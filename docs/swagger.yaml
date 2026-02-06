@@ -1,0 +1,215 @@
+basePath: /
+definitions:
+  model.Category:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  model.CreateCategoryRequestSwagger:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  model.CreateProductRequestSwagger:
+    properties:
+      category_id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+      stock:
+        type: integer
+    type: object
+  model.ProductResponseSwagger:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+      stock:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: This is a sample API for a cashier system.
+  title: Go Cashier API
+  version: "1.0"
+paths:
+  /api/categories:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Category'
+            type: array
+      summary: Get all categories
+      tags:
+      - Categories
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create category payload
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCategoryRequestSwagger'
+      produces:
+      - application/json
+      responses: {}
+      summary: Create category
+      tags:
+      - Categories
+  /api/categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses: {}
+      summary: Delete category by ID
+      tags:
+      - Categories
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses: {}
+      summary: Get category by ID
+      tags:
+      - Categories
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update category payload
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCategoryRequestSwagger'
+      produces:
+      - application/json
+      responses: {}
+      summary: Update category by ID
+      tags:
+      - Categories
+  /api/products:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.ProductResponseSwagger'
+            type: array
+      summary: Get all products
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create product payload
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateProductRequestSwagger'
+      produces:
+      - application/json
+      responses: {}
+      summary: Create product
+      tags:
+      - Products
+  /api/products/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses: {}
+      summary: Delete product by ID
+      tags:
+      - Products
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses: {}
+      summary: Get product by ID
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update product payload
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateProductRequestSwagger'
+      produces:
+      - application/json
+      responses: {}
+      summary: Update product by ID
+      tags:
+      - Products
+swagger: "2.0"

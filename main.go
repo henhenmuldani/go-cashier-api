@@ -50,15 +50,20 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize repositories, services, and handlers for products
+	// Initialize repositories
 	productRepo := repository.NewProductRepository(db)
-	productService := service.NewProductService(productRepo)
-	productHandler := handler.NewProductHandler(productService)
-
-	// Initialize repositories, services, and handlers for categories
 	categoryRepo := repository.NewCategoryRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
+
+	// Initialize services
+	productService := service.NewProductService(productRepo, categoryRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
+	transactionService := service.NewTransactionService(transactionRepo, productRepo)
+
+	// Initialize handlers
+	productHandler := handler.NewProductHandler(productService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
+	transactionHandler := handler.NewTransactionHandler(transactionService)
 
 	// Setup HTTP server and routes
 	mux := http.NewServeMux()
@@ -73,6 +78,9 @@ func main() {
 	mux.HandleFunc("/api/products/", productHandler.HandleProductByID)
 	mux.HandleFunc("/api/categories", categoryHandler.HandleCategories)
 	mux.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
+	mux.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
+	mux.HandleFunc("/api/report", transactionHandler.GetTransactionsByDate)
+	mux.HandleFunc("/api/report/today", transactionHandler.GetTransactionsToday)
 	// Redirect root to Swagger UI
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

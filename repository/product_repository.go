@@ -2,17 +2,16 @@ package repository
 
 import (
 	"database/sql"
-	"errors"
 
 	"go-cashier-api/model"
 )
 
 type ProductRepository interface {
-	GetAll() ([]model.Product, error)
+	GetAll(nameFilter string) ([]model.Product, error)
 	GetByID(id int) (*model.Product, error)
 	Create(product *model.Product) error
-	Update(product *model.Product) error
-	Delete(id int) error
+	Update(product *model.Product) (int64, error)
+	Delete(id int) (int64, error)
 }
 
 // implementation of repository pattern for product entity
@@ -28,10 +27,16 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 
 // Query functions
 // GetAllProducts returns all products
-func (repo *ProductRepositoryImpl) GetAll() ([]model.Product, error) {
+func (repo *ProductRepositoryImpl) GetAll(nameFilter string) ([]model.Product, error) {
 	// query all products from database
 	query := "SELECT id, name, price, stock FROM products"
-	rows, err := repo.db.Query(query)
+	args := []interface{}{}
+	if nameFilter != "" {
+		query += " WHERE name ILIKE $1"
+		args = append(args, "%"+nameFilter+"%")
+	}
+
+	rows, err := repo.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +52,9 @@ func (repo *ProductRepositoryImpl) GetAll() ([]model.Product, error) {
 		}
 		products = append(products, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return products, nil
 }
 
@@ -59,7 +67,7 @@ func (repo *ProductRepositoryImpl) GetByID(id int) (*model.Product, error) {
 	var p model.Product
 	err := repo.db.QueryRow(query, id).Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.CategoryID, &p.Category.Name)
 	if err == sql.ErrNoRows {
-		return nil, errors.New("product not found")
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err
@@ -78,40 +86,24 @@ func (repo *ProductRepositoryImpl) Create(p *model.Product) error {
 }
 
 // UpdateProduct updates an existing product by its ID
-func (repo *ProductRepositoryImpl) Update(product *model.Product) error {
+func (repo *ProductRepositoryImpl) Update(product *model.Product) (int64, error) {
 	query := "UPDATE products SET name = $1, price = $2, stock = $3, category_id = $4 WHERE id = $5"
 	result, err := repo.db.Exec(query, product.Name, product.Price, product.Stock, product.CategoryID, product.ID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
+	return result.RowsAffected()
 
-	if rows == 0 {
-		return errors.New("product not found")
-	}
-
-	return nil
 }
 
 // DeleteProduct removes a product by its ID
-func (repo *ProductRepositoryImpl) Delete(id int) error {
+func (repo *ProductRepositoryImpl) Delete(id int) (int64, error) {
 	query := "DELETE FROM products WHERE id = $1"
 	result, err := repo.db.Exec(query, id)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
+	return result.RowsAffected()
 
-	if rows == 0 {
-		return errors.New("product not found")
-	}
-
-	return err
 }

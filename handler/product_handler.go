@@ -25,7 +25,7 @@ func NewProductHandler(service service.ProductService) *ProductHandler {
 func (h *ProductHandler) HandleProducts(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		h.getAll(w)
+		h.getAll(w, r)
 	case http.MethodPost:
 		h.create(w, r)
 	default:
@@ -54,9 +54,12 @@ func (h *ProductHandler) HandleProductByID(w http.ResponseWriter, r *http.Reques
 // @Produce json
 // @Success 200 {array} model.ProductResponseSwagger
 // @Router /api/products [get]
-func (h *ProductHandler) getAll(w http.ResponseWriter) {
+func (h *ProductHandler) getAll(w http.ResponseWriter, r *http.Request) {
+	// Get name query from URL param
+	name := r.URL.Query().Get("name")
+
 	// GET /api/products
-	products, err := h.service.GetAll()
+	products, err := h.service.GetAll(name)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Failed to fetch products")
 		return

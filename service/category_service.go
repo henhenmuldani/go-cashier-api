@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
+	"strings"
+
 	"go-cashier-api/model"
 	"go-cashier-api/repository"
-	"strings"
 )
 
 type CategoryService interface {
@@ -15,20 +16,25 @@ type CategoryService interface {
 	Delete(id int) error
 }
 
-type categoryService struct {
+type CategoryServiceImpl struct {
 	repo repository.CategoryRepository
 }
 
 func NewCategoryService(repo repository.CategoryRepository) CategoryService {
-	return &categoryService{repo: repo}
+	return &CategoryServiceImpl{repo: repo}
 }
 
-func (s *categoryService) GetAll() ([]model.Category, error) {
-	return s.repo.GetAll()
+func (s *CategoryServiceImpl) GetAll() ([]model.Category, error) {
+	categories, err := s.repo.GetAll()
 
+	if err != nil {
+		return nil, err
+	}
+
+	return categories, nil
 }
 
-func (s *categoryService) Create(category *model.Category) error {
+func (s *CategoryServiceImpl) Create(category *model.Category) error {
 	// Business validation
 	if strings.TrimSpace(category.Name) == "" {
 		return errors.New("category name is required")
@@ -40,7 +46,7 @@ func (s *categoryService) Create(category *model.Category) error {
 	return s.repo.Create(category)
 }
 
-func (s *categoryService) GetByID(id int) (*model.Category, error) {
+func (s *CategoryServiceImpl) GetByID(id int) (*model.Category, error) {
 	category, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -53,7 +59,7 @@ func (s *categoryService) GetByID(id int) (*model.Category, error) {
 	return category, nil
 }
 
-func (s *categoryService) Update(id int, category *model.Category) error {
+func (s *CategoryServiceImpl) Update(id int, category *model.Category) error {
 	// 1. Get existing
 	existing, err := s.repo.GetByID(id)
 	if err != nil {
@@ -94,19 +100,35 @@ func (s *categoryService) Update(id int, category *model.Category) error {
 	return nil
 }
 
-func (s *categoryService) Delete(id int) error {
-	// Check if category exists
+func (s *CategoryServiceImpl) Delete(id int) error {
+	// 1. Consider implementing a soft delete pattern
+	//    (add DeletedAt field to your model)
+
+	// 2. Check business constraints BEFORE attempting deletion
+	// In a real application, you would check if category has products
+	// before deleting
+	// hasProducts, err := s.productRepo.HasProductsInCategory(id)
+	// if err != nil {
+	//     return fmt.Errorf("failed to check category products: %w", err)
+	// }
+	// if hasProducts {
+	//     return errors.New("cannot delete category with existing products")
+	// }
+
+	// 3. Single attempt with proper error handling
 	rowsAffected, err := s.repo.Delete(id)
 	if err != nil {
 		return err
 	}
 
+	// 4. Consistent error handling
 	if rowsAffected == 0 {
+		// You might want to distinguish between "not found"
+		// and "already deleted"
 		return errors.New("category not found")
 	}
 
-	// In a real application, you would check if category has products
-	// before deleting
+	// 5. Optional: Clear cache or trigger events
 
 	return nil
 }
